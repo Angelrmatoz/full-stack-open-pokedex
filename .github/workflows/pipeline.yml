@@ -5,11 +5,10 @@ on:
     branches:
       - main
   pull_request:
-    branches:
-      - main
+    branches: [main]
+    types: [opened, synchronize]
 
 jobs:
-
   simple_deployment_pipeline:
     runs-on: ubuntu-latest
     steps:
@@ -17,25 +16,56 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: Install dependencies
         run: npm install
-
       - name: Check style
         run: npm run eslint
-
       - name: Build
         run: npm run build
-
       - name: Test
         run: npm test
-
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
-
       - name: e2e tests
         run: npm run test:e2e
-
       - name: Trigger Render Deploy
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ github.event_name == 'push' && !contains(join(github.event.commits.*.message, ' '), '#skip') }}
         run: curl -X GET "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
+  tag_release:
+    needs: [simple_deployment_pipeline]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
+      - name: Bump version and push tag
+        if: ${{ github.event_name == 'push' && !contains(join(github.event.commits.*.message, ' '), '#skip') }}
+        uses: anothrNick/github-tag-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_PREFIX: v
+
+  notify_discord:
+    needs: [simple_deployment_pipeline]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Discord on Success
+        if: ${{ github.event_name == 'push' && !contains(join(github.event.commits.*.message, ' '), '#skip') && needs.simple_deployment_pipeline.result == 'success' }}
+        uses: Ilshidur/action-discord@v2
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ✅ Nueva versión de Pokedex desplegada por ${{ github.actor }}.
+            Ver detalles: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+      - name: Notify Discord on Failure
+        if: ${{ github.event_name == 'push' && !contains(join(github.event.commits.*.message, ' '), '#skip') && needs.simple_deployment_pipeline.result == 'failure' }}
+        uses: Ilshidur/action-discord@v2
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ❌ Error en el build.
+            Commit: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+            Autor: ${{ github.actor }} rompió el build :(
+            Mensaje: ${{ github.event.head_commit.message }}
+            Ver detalles: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
