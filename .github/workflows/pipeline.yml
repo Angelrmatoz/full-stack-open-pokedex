@@ -52,20 +52,26 @@ jobs:
     steps:
       - name: Notify Discord on Success
         if: ${{ github.event_name == 'push' && !contains(join(github.event.commits.*.message, ' '), '#skip') && needs.simple_deployment_pipeline.result == 'success' }}
-        uses: Ilshidur/action-discord@v2
+        uses: rjstone/discord-webhook-notify@v2
         with:
-          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          message: |
-            ✅ Nueva versión de Pokedex desplegada por ${{ github.actor }}.
-            Ver detalles: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          username: GitHub BOT
+          avatarUrl: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
+          severity: info
+          color: '#00ff00'
+          title: "A new version of Pokedex deployed"
+          description: "to https://pdex.fly.dev/ by ${{ github.actor }}"
+          footer: "Severity: Informational • Hoy a ${{ steps.date.outputs.time }}"
       - name: Notify Discord on Failure
         if: ${{ github.event_name == 'push' && !contains(join(github.event.commits.*.message, ' '), '#skip') && needs.simple_deployment_pipeline.result == 'failure' }}
-        uses: Ilshidur/action-discord@v2
+        uses: rjstone/discord-webhook-notify@v2
         with:
-          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          message: |
-            ❌ Error en el build.
-            Commit: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
-            Autor: ${{ github.actor }} rompió el build :(
-            Mensaje: ${{ github.event.head_commit.message }}
-            Ver detalles: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          username: GitHub BOT
+          avatarUrl: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
+          severity: error
+          color: '#ff0000'
+          title: "Build failed"
+          description: |
+            commit https://github.com/${{ github.repository }}/commit/${{ github.sha }} by ${{ github.actor }} broke the build :(
+          footer: "Severity: Error • Hoy a ${{ steps.date.outputs.time }}"
