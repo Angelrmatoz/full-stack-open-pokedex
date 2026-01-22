@@ -12,6 +12,10 @@ app.get("*", (req, res) => {
   res.sendFile(path.resolve(__dirname, "dist", "index.html"));
 });
 
+app.get("/", (req, res) => {
+    res.status(200).send("All Good!");
+})
+
 app.get("/health", (req, res) => {
     res.status(200).send("OK");
 });
